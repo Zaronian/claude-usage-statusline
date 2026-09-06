@@ -55,7 +55,7 @@ The script just reads that. No auth, no polling, no transcript parsing, no third
 
 ## Status JSON on disk (optional, for agent sessions)
 
-Every run also writes the raw stdin JSON to `~/.claude/usage-data/sessions/<session_id>.json` and `~/.claude/usage-data/latest.json`. An agent session (Claude Code's Bash tool exports `CLAUDE_CODE_SESSION_ID`) can read its own context fill and the account rate-limit meters at checkpoints, e.g.
+Every run also writes the raw stdin JSON to `~/.claude/usage-data/sessions/<session_id>.json` and `~/.claude/usage-data/latest.json` (atomic writes; invalid input is skipped; files older than 7 days are pruned). `latest.json` is whichever session rendered last — with several Claude Code windows open, read your own `sessions/$CLAUDE_CODE_SESSION_ID.json` instead. An agent session (Claude Code's Bash tool exports `CLAUDE_CODE_SESSION_ID`) can read its own context fill and the account rate-limit meters at checkpoints, e.g.
 
 ```bash
 jq '{ctx: .context_window.used_percentage, h5: .rate_limits.five_hour.used_percentage, wk: .rate_limits.seven_day.used_percentage}' \
@@ -75,6 +75,8 @@ To keep the file fresh while a session idles (waiting on subagents), add `"refre
 ```bash
 rm ~/.claude/statusline.sh
 ```
+
+Also `rm -rf ~/.claude/usage-data` if you no longer want the persisted status files.
 
 Then remove the `statusLine` block from `~/.claude/settings.json` (or restore the `settings.json.backup-*` the installer created).
 

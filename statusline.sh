@@ -2,9 +2,18 @@
 input=$(cat)
 
 # Persist the status JSON so agent sessions can read their own context fill
-# and the account rate-limit meters (optional; harmless if unused).
-SID=$(echo "$input" | jq -r '.session_id // "unknown"')
-mkdir -p "$HOME/.claude/usage-data/sessions" && echo "$input" > "$HOME/.claude/usage-data/sessions/$SID.json" && cp "$HOME/.claude/usage-data/sessions/$SID.json" "$HOME/.claude/usage-data/latest.json"
+# and the account rate-limit meters at checkpoints.
+# Atomic writes (a cancelled in-flight run never leaves a truncated file),
+# session id sanitised (no path traversal), invalid/empty input skipped,
+# files older than 7 days pruned.
+D="$HOME/.claude/usage-data"
+SID=$(echo "$input" | jq -r '.session_id // "unknown"' 2>/dev/null)
+case "$SID" in *[!A-Za-z0-9._-]*|'') SID=unknown;; esac
+if echo "$input" | jq -e . >/dev/null 2>&1 && mkdir -p "$D/sessions" 2>/dev/null; then
+  printf '%s\n' "$input" > "$D/sessions/$SID.json.tmp.$$" && mv -f "$D/sessions/$SID.json.tmp.$$" "$D/sessions/$SID.json" \
+    && cp "$D/sessions/$SID.json" "$D/latest.json.tmp.$$" && mv -f "$D/latest.json.tmp.$$" "$D/latest.json"
+  find "$D/sessions" -name '*.json' -mtime +7 -delete 2>/dev/null
+fi
 
 MODEL=$(echo "$input" | jq -r '.model.display_name')
 DIR=$(echo "$input" | jq -r '.workspace.current_dir')
