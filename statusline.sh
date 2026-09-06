@@ -12,7 +12,8 @@ case "$SID" in *[!A-Za-z0-9._-]*|'') SID=unknown;; esac
 if echo "$input" | jq -e . >/dev/null 2>&1 && mkdir -p "$D/sessions" 2>/dev/null; then
   printf '%s\n' "$input" > "$D/sessions/$SID.json.tmp.$$" && mv -f "$D/sessions/$SID.json.tmp.$$" "$D/sessions/$SID.json" \
     && cp "$D/sessions/$SID.json" "$D/latest.json.tmp.$$" && mv -f "$D/latest.json.tmp.$$" "$D/latest.json"
-  find "$D/sessions" -name '*.json' -mtime +7 -delete 2>/dev/null
+  find "$D/sessions" \( -name '*.json' -mtime +7 -o -name '*.json.tmp.*' -mtime +1 \) -delete 2>/dev/null
+  find "$D" -maxdepth 1 -name 'latest.json.tmp.*' -mtime +1 -delete 2>/dev/null
 fi
 
 MODEL=$(echo "$input" | jq -r '.model.display_name')
