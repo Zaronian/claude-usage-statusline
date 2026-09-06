@@ -1,6 +1,11 @@
 #!/bin/bash
 input=$(cat)
 
+# Persist the status JSON so agent sessions can read their own context fill
+# and the account rate-limit meters (optional; harmless if unused).
+SID=$(echo "$input" | jq -r '.session_id // "unknown"')
+mkdir -p "$HOME/.claude/usage-data/sessions" && echo "$input" > "$HOME/.claude/usage-data/sessions/$SID.json" && cp "$HOME/.claude/usage-data/sessions/$SID.json" "$HOME/.claude/usage-data/latest.json"
+
 MODEL=$(echo "$input" | jq -r '.model.display_name')
 DIR=$(echo "$input" | jq -r '.workspace.current_dir')
 COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')

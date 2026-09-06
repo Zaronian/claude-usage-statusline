@@ -53,6 +53,17 @@ Claude Code pipes a JSON snapshot to your statusline command on every refresh. R
 
 The script just reads that. No auth, no polling, no transcript parsing, no third-party services — the numbers are the same server-side meters `/usage` shows.
 
+## Status JSON on disk (optional, for agent sessions)
+
+Every run also writes the raw stdin JSON to `~/.claude/usage-data/sessions/<session_id>.json` and `~/.claude/usage-data/latest.json`. An agent session (Claude Code's Bash tool exports `CLAUDE_CODE_SESSION_ID`) can read its own context fill and the account rate-limit meters at checkpoints, e.g.
+
+```bash
+jq '{ctx: .context_window.used_percentage, h5: .rate_limits.five_hour.used_percentage, wk: .rate_limits.seven_day.used_percentage}' \
+  ~/.claude/usage-data/sessions/$CLAUDE_CODE_SESSION_ID.json
+```
+
+To keep the file fresh while a session idles (waiting on subagents), add `"refreshInterval": 30` to the `statusLine` block in `~/.claude/settings.json`. Delete `~/.claude/usage-data/` at any time; nothing depends on it.
+
 ## Caveats
 
 - The two meters are your **account-wide** limits (all models combined). Model-specific weekly caps exist server-side but aren't exposed to statusline scripts — run `/usage` for the complete picture.
