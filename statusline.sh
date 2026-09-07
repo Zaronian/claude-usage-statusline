@@ -1,6 +1,26 @@
 #!/bin/bash
 input=$(cat)
 
+# Persist the status JSON — OPT-IN: create ~/.claude/usage-data/statusline to
+# enable. Lets the MAIN session read its own context fill and the account
+# rate-limit meters. Subagents share the parent's session id
+# (CLAUDE_CODE_CHILD_SESSION=1) and must not pace on this file. Values are as
+# of the session's most recent API response; `written_at` is the write time.
+# Private files (umask 077), atomic writes, sanitised id, non-object input
+# skipped, prune once per session (>30 days), all errors silent.
+(
+  D="$HOME/.claude/usage-data/statusline"
+  if [ -d "$D" ] && SID=$(printf '%s' "$input" | jq -er 'objects | .session_id // "unknown"'); then
+    case "$SID" in *[!A-Za-z0-9._-]*|'') SID=unknown;; esac
+    umask 077
+    mkdir -p "$D/sessions"
+    [ -f "$D/sessions/$SID.json" ] || find "$D" \( -name '*.json' -mtime +30 -o -name '*.tmp.*' -mtime +1 \) -delete
+    printf '%s' "$input" | jq --arg t "$(date +%s)" '. + {written_at: ($t|tonumber)}' > "$D/sessions/$SID.json.tmp.$$" \
+      && mv -f "$D/sessions/$SID.json.tmp.$$" "$D/sessions/$SID.json" \
+      && cp "$D/sessions/$SID.json" "$D/latest.json.tmp.$$" && mv -f "$D/latest.json.tmp.$$" "$D/latest.json"
+  fi
+) 2>/dev/null
+
 MODEL=$(echo "$input" | jq -r '.model.display_name')
 DIR=$(echo "$input" | jq -r '.workspace.current_dir')
 COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
